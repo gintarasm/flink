@@ -61,6 +61,13 @@ public class AvroConfluentFormatOptions {
                                     + "the Debezium schema which is a nullable record type including "
                                     + "fields 'before', 'after', 'op' ('debezium-avro-confluent').");
 
+    public static final ConfigOption<String> FALLBACK_SCHEMA =
+            ConfigOptions.key("fallback-schema")
+                    .stringType()
+                    .noDefaultValue()
+                    .withFallbackKeys("schema-registry.fallback-schema")
+                    .withDescription("Schema subject used to resolve enum values");
+
     // --------------------------------------------------------------------------------------------
     // Commonly used options maintained by Flink for convenience
     // --------------------------------------------------------------------------------------------

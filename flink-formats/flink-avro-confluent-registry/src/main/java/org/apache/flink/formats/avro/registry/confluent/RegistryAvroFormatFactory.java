@@ -18,6 +18,9 @@
 
 package org.apache.flink.formats.avro.registry.confluent;
 
+import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
+
+import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
@@ -51,6 +54,7 @@ import org.apache.avro.Schema.Parser;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -64,6 +68,7 @@ import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentForm
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BASIC_AUTH_USER_INFO;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BEARER_AUTH_CREDENTIALS_SOURCE;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BEARER_AUTH_TOKEN;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.FALLBACK_SCHEMA;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.PROPERTIES;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SCHEMA;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SSL_KEYSTORE_LOCATION;
@@ -100,10 +105,11 @@ public class RegistryAvroFormatFactory
                     int[][] projections) {
                 producedDataType = Projection.of(projections).project(producedDataType);
                 final RowType rowType = (RowType) producedDataType.getLogicalType();
+                String fallbackSchema = getFallbackSchema(schemaRegistryURL,  formatOptions.getOptional(FALLBACK_SCHEMA));
                 final Schema schema =
                         schemaString
                                 .map(s -> getAvroSchema(s, rowType))
-                                .orElse(AvroSchemaConverter.convertToSchema(rowType));
+                                .orElse(ConfluentAvroSchemaConverter.convertToSchema(rowType, fallbackSchema));
                 final TypeInformation<RowData> rowDataTypeInfo =
                         context.createTypeInformation(producedDataType);
                 return new AvroRowDataDeserializationSchema(
@@ -130,6 +136,8 @@ public class RegistryAvroFormatFactory
         Optional<String> schemaString = formatOptions.getOptional(SCHEMA);
         Map<String, ?> optionalPropertiesMap = buildOptionalPropertiesMap(formatOptions);
 
+        String fallbackSchema = getFallbackSchema(schemaRegistryURL,  formatOptions.getOptional(FALLBACK_SCHEMA));
+
         if (!subject.isPresent()) {
             throw new ValidationException(
                     String.format(
@@ -145,7 +153,7 @@ public class RegistryAvroFormatFactory
                 final Schema schema =
                         schemaString
                                 .map(s -> getAvroSchema(s, rowType))
-                                .orElse(AvroSchemaConverter.convertToSchema(rowType));
+                                .orElse(ConfluentAvroSchemaConverter.convertToSchema(rowType, fallbackSchema));
                 return new AvroRowDataSerializationSchema(
                         rowType,
                         ConfluentRegistryAvroSerializationSchema.forGeneric(
@@ -158,6 +166,18 @@ public class RegistryAvroFormatFactory
                 return ChangelogMode.insertOnly();
             }
         };
+    }
+
+    private String getFallbackSchema(String schemaRegistryURL, Optional<String> fallbackSchema) {
+        CachedSchemaRegistryClient client = new CachedSchemaRegistryClient(schemaRegistryURL, 10, null);
+        return fallbackSchema
+                .map(s -> {
+                    try {
+                        return client.getLatestSchemaMetadata(s).getSchema();
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                }).orElse(null);
     }
 
     @Override
@@ -186,6 +206,7 @@ public class RegistryAvroFormatFactory
         options.add(BASIC_AUTH_USER_INFO);
         options.add(BEARER_AUTH_CREDENTIALS_SOURCE);
         options.add(BEARER_AUTH_TOKEN);
+        options.add(FALLBACK_SCHEMA);
         return options;
     }
 
@@ -203,7 +224,8 @@ public class RegistryAvroFormatFactory
                         BASIC_AUTH_CREDENTIALS_SOURCE,
                         BASIC_AUTH_USER_INFO,
                         BEARER_AUTH_CREDENTIALS_SOURCE,
-                        BEARER_AUTH_TOKEN)
+                        BEARER_AUTH_TOKEN,
+                        FALLBACK_SCHEMA)
                 .collect(Collectors.toSet());
     }
 
