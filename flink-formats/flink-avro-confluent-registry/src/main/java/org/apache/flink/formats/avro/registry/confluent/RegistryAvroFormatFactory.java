@@ -18,9 +18,6 @@
 
 package org.apache.flink.formats.avro.registry.confluent;
 
-import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
-
-import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
@@ -49,12 +46,12 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
+import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Parser;
 
 import javax.annotation.Nullable;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -105,11 +102,15 @@ public class RegistryAvroFormatFactory
                     int[][] projections) {
                 producedDataType = Projection.of(projections).project(producedDataType);
                 final RowType rowType = (RowType) producedDataType.getLogicalType();
-                String fallbackSchema = getFallbackSchema(schemaRegistryURL,  formatOptions.getOptional(FALLBACK_SCHEMA));
+                String fallbackSchema =
+                        getFallbackSchema(
+                                schemaRegistryURL, formatOptions.getOptional(FALLBACK_SCHEMA));
                 final Schema schema =
                         schemaString
                                 .map(s -> getAvroSchema(s, rowType))
-                                .orElse(ConfluentAvroSchemaConverter.convertToSchema(rowType, fallbackSchema));
+                                .orElse(
+                                        ConfluentAvroSchemaConverter.convertToSchema(
+                                                rowType, fallbackSchema));
                 final TypeInformation<RowData> rowDataTypeInfo =
                         context.createTypeInformation(producedDataType);
                 return new AvroRowDataDeserializationSchema(
@@ -136,7 +137,8 @@ public class RegistryAvroFormatFactory
         Optional<String> schemaString = formatOptions.getOptional(SCHEMA);
         Map<String, ?> optionalPropertiesMap = buildOptionalPropertiesMap(formatOptions);
 
-        String fallbackSchema = getFallbackSchema(schemaRegistryURL,  formatOptions.getOptional(FALLBACK_SCHEMA));
+        String fallbackSchema =
+                getFallbackSchema(schemaRegistryURL, formatOptions.getOptional(FALLBACK_SCHEMA));
 
         if (!subject.isPresent()) {
             throw new ValidationException(
@@ -153,7 +155,9 @@ public class RegistryAvroFormatFactory
                 final Schema schema =
                         schemaString
                                 .map(s -> getAvroSchema(s, rowType))
-                                .orElse(ConfluentAvroSchemaConverter.convertToSchema(rowType, fallbackSchema));
+                                .orElse(
+                                        ConfluentAvroSchemaConverter.convertToSchema(
+                                                rowType, fallbackSchema));
                 return new AvroRowDataSerializationSchema(
                         rowType,
                         ConfluentRegistryAvroSerializationSchema.forGeneric(
@@ -169,15 +173,18 @@ public class RegistryAvroFormatFactory
     }
 
     private String getFallbackSchema(String schemaRegistryURL, Optional<String> fallbackSchema) {
-        CachedSchemaRegistryClient client = new CachedSchemaRegistryClient(schemaRegistryURL, 10, null);
+        CachedSchemaRegistryClient client =
+                new CachedSchemaRegistryClient(schemaRegistryURL, 10, null);
         return fallbackSchema
-                .map(s -> {
-                    try {
-                        return client.getLatestSchemaMetadata(s).getSchema();
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                }).orElse(null);
+                .map(
+                        s -> {
+                            try {
+                                return client.getLatestSchemaMetadata(s).getSchema();
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }
+                        })
+                .orElse(null);
     }
 
     @Override

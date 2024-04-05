@@ -18,14 +18,9 @@
 
 package org.apache.flink.formats.avro.registry.confluent;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.formats.avro.AvroRowDeserializationSchema;
 import org.apache.flink.formats.avro.AvroRowSerializationSchema;
-import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.types.AtomicDataType;
-import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.IntType;
@@ -37,19 +32,12 @@ import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
-import org.apache.flink.table.types.logical.TypeInformationRawType;
-import org.apache.flink.types.Row;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
-import org.apache.avro.SchemaParseException;
-import org.apache.avro.specific.SpecificData;
-import org.apache.avro.specific.SpecificRecord;
 
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Converts an Avro schema into Flink's type information. It uses {@link RowTypeInfo} for
@@ -64,6 +52,7 @@ public class ConfluentAvroSchemaConverter {
     private ConfluentAvroSchemaConverter() {
         // private
     }
+
     /**
      * Converts Flink SQL {@link LogicalType} (can be nested) into an Avro schema.
      *
@@ -87,9 +76,14 @@ public class ConfluentAvroSchemaConverter {
      * @param legacyTimestampMapping whether to use the legacy timestamp mapping
      * @return Avro's {@link Schema} matching this logical type.
      */
-    public static Schema convertToSchema(LogicalType schema, String fallbackSchema, boolean legacyTimestampMapping) {
+    public static Schema convertToSchema(
+            LogicalType schema, String fallbackSchema, boolean legacyTimestampMapping) {
         return convertToSchema(
-                schema, fallbackSchema, null, "org.apache.flink.avro.generated.record", legacyTimestampMapping);
+                schema,
+                fallbackSchema,
+                null,
+                "org.apache.flink.avro.generated.record",
+                legacyTimestampMapping);
     }
 
     /**
@@ -104,7 +98,11 @@ public class ConfluentAvroSchemaConverter {
      * @return Avro's {@link Schema} matching this logical type.
      */
     public static Schema convertToSchema(
-            LogicalType logicalType, String fallbackSchema, String fieldName, String rowName, boolean legacyTimestampMapping) {
+            LogicalType logicalType,
+            String fallbackSchema,
+            String fieldName,
+            String rowName,
+            boolean legacyTimestampMapping) {
         int precision;
         boolean nullable = logicalType.isNullable();
         switch (logicalType.getTypeRoot()) {
