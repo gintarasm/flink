@@ -104,7 +104,9 @@ public class RegistryAvroFormatFactory
                 final RowType rowType = (RowType) producedDataType.getLogicalType();
                 String fallbackSchema =
                         getFallbackSchema(
-                                schemaRegistryURL, optionalPropertiesMap, formatOptions.getOptional(FALLBACK_SCHEMA));
+                                schemaRegistryURL,
+                                optionalPropertiesMap,
+                                formatOptions.getOptional(FALLBACK_SCHEMA));
                 final Schema schema =
                         schemaString
                                 .map(s -> getAvroSchema(s, rowType))
@@ -138,7 +140,10 @@ public class RegistryAvroFormatFactory
         Map<String, ?> optionalPropertiesMap = buildOptionalPropertiesMap(formatOptions);
 
         String fallbackSchema =
-                getFallbackSchema(schemaRegistryURL, optionalPropertiesMap, formatOptions.getOptional(FALLBACK_SCHEMA));
+                getFallbackSchema(
+                        schemaRegistryURL,
+                        optionalPropertiesMap,
+                        formatOptions.getOptional(FALLBACK_SCHEMA));
 
         if (!subject.isPresent()) {
             throw new ValidationException(
@@ -172,7 +177,10 @@ public class RegistryAvroFormatFactory
         };
     }
 
-    private String getFallbackSchema(String schemaRegistryURL, @Nullable Map<String, ?> registryConfigs, Optional<String> fallbackSchema) {
+    private String getFallbackSchema(
+            String schemaRegistryURL,
+            @Nullable Map<String, ?> registryConfigs,
+            Optional<String> fallbackSchema) {
         CachedSchemaRegistryClient client =
                 new CachedSchemaRegistryClient(schemaRegistryURL, 10, registryConfigs);
         return fallbackSchema
